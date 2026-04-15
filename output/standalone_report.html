@@ -1,0 +1,1921 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>表质量分析工具</title>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <script id="embedded-report-data" type="application/json">{}</script>
+  <script id="embedded-notes-data" type="application/json">{}</script>
+  <script id="embedded-meta-data" type="application/json">{}</script>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f7fb;
+      color: #1f2937;
+    }
+
+    .page {
+      max-width: 1560px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .panel {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      margin: 0 0 10px 0;
+      font-size: 32px;
+    }
+
+    .sub {
+      color: #6b7280;
+      font-size: 14px;
+      margin-bottom: 16px;
+      line-height: 1.6;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .toolbar input[type="file"] {
+      max-width: 320px;
+    }
+
+    .toolbar button {
+      border: 1px solid #d1d5db;
+      background: #fff;
+      color: #111827;
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .toolbar button:hover {
+      background: #f9fafb;
+    }
+
+    .toolbar button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .toolbar-note {
+      font-size: 13px;
+      color: #6b7280;
+      width: 100%;
+      line-height: 1.5;
+    }
+
+    .dim-box {
+      margin-top: 8px;
+      padding: 14px;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      background: #f8fafc;
+    }
+
+    .dim-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .dim-sub {
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 10px;
+      line-height: 1.5;
+    }
+
+    .dim-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .dim-actions button {
+      border: 1px solid #d1d5db;
+      background: #fff;
+      color: #111827;
+      padding: 6px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .dim-actions button:hover {
+      background: #f9fafb;
+    }
+
+    .dim-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 18px;
+    }
+
+    .dim-list label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .summary-item {
+      background: #f8fafc;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+
+    .summary-label {
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 8px;
+    }
+
+    .summary-value {
+      font-size: 26px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .control-box {
+      margin-top: 16px;
+      padding: 14px;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      background: #f8fafc;
+      display: grid;
+      grid-template-columns: minmax(220px, 320px) minmax(160px, 220px) auto auto 1fr;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .control-box input,
+    .control-box select {
+      width: 100%;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 14px;
+      background: #fff;
+    }
+
+    .control-box button {
+      border: 1px solid #d1d5db;
+      background: #fff;
+      color: #111827;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .control-box button:hover {
+      background: #f9fafb;
+    }
+
+    .control-summary {
+      justify-self: end;
+      color: #6b7280;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 20px;
+      background: #fff;
+      border-radius: 14px;
+      padding: 16px;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      max-height: calc(100vh - 40px);
+      overflow: auto;
+    }
+
+    .sidebar h2 {
+      margin: 0 0 14px 0;
+      font-size: 18px;
+    }
+
+    .toc-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toc-item {
+      display: block;
+      text-decoration: none;
+      color: #1f2937;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #eef2f7;
+      background: #fafbff;
+      font-size: 14px;
+    }
+
+    .toc-item:hover {
+      background: #eef2ff;
+    }
+
+    .toc-critical {
+      background: #fff1f2;
+      border-color: #fecdd3;
+    }
+
+    .toc-high {
+      border-left: 4px solid #f59e0b;
+    }
+
+    .toc-medium {
+      border-left: 4px solid #3b82f6;
+    }
+
+    .toc-ok {
+      border-left: 4px solid #cbd5e1;
+    }
+
+    .toc-confirmed {
+      box-shadow: inset 0 0 0 1px #22c55e;
+      background: #f0fdf4;
+    }
+
+    .toc-meta {
+      display: block;
+      margin-top: 4px;
+      color: #6b7280;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .content {
+      min-width: 0;
+    }
+
+    .field-list {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 18px;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      scroll-margin-top: 24px;
+    }
+
+    .problem-critical { border-top: 4px solid #ef4444; }
+    .problem-high { border-top: 4px solid #f97316; }
+    .problem-medium { border-top: 4px solid #3b82f6; }
+    .problem-ok { border-top: 4px solid #cbd5e1; }
+
+    .status-pending {
+      border-left: 6px solid #f59e0b;
+    }
+
+    .status-confirmed {
+      border-left: 6px solid #22c55e;
+      background: #fcfffc;
+    }
+
+    .card h3 {
+      margin: 0;
+      font-size: 22px;
+      word-break: break-word;
+    }
+
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .card-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .collapse-btn {
+      border: 1px solid #d1d5db;
+      background: #fff;
+      color: #374151;
+      padding: 8px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .collapse-btn:hover {
+      background: #f9fafb;
+    }
+
+    .status-buttons {
+      display: inline-flex;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .status-btn {
+      padding: 8px 12px;
+      border: none;
+      background: #fff;
+      cursor: pointer;
+      font-size: 13px;
+      color: #374151;
+    }
+
+    .status-btn + .status-btn {
+      border-left: 1px solid #d1d5db;
+    }
+
+    .status-btn.active.pending-btn {
+      background: #fff7ed;
+      color: #c2410c;
+      font-weight: 600;
+    }
+
+    .status-btn.active.confirmed-btn {
+      background: #f0fdf4;
+      color: #15803d;
+      font-weight: 600;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: #f3f4f6;
+      color: #374151;
+    }
+
+    .badge.critical {
+      background: #fff1f2;
+      color: #be123c;
+    }
+
+    .badge.high {
+      background: #fff7ed;
+      color: #c2410c;
+    }
+
+    .badge.medium {
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+
+    .badge.ok {
+      background: #f0fdf4;
+      color: #15803d;
+    }
+
+    .badge.warn {
+      background: #fff7ed;
+      color: #c2410c;
+    }
+
+    .card.collapsed .card-body {
+      display: none;
+    }
+
+    .card.collapsed .collapsed-summary {
+      display: block;
+    }
+
+    .collapsed-summary {
+      display: none;
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 10px;
+      background: #f8fafc;
+      border: 1px solid #e5e7eb;
+      color: #4b5563;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .collapsed-summary strong {
+      color: #111827;
+    }
+
+    .section-title {
+      margin-top: 14px;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .progress-wrap {
+      margin-top: 10px;
+      margin-bottom: 14px;
+    }
+
+    .progress-label {
+      font-size: 13px;
+      margin-bottom: 6px;
+      color: #374151;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 10px;
+      background: #e5e7eb;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: #2563eb;
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    li {
+      margin-bottom: 6px;
+      word-break: break-word;
+      line-height: 1.45;
+    }
+
+    .empty {
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    .null-context-box {
+      margin-top: 16px;
+      padding: 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      background: #f8fafc;
+    }
+
+    .null-context-desc {
+      margin-bottom: 10px;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #4b5563;
+    }
+
+    .null-context-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 12px;
+      align-items: start;
+    }
+
+    .null-context-card {
+      padding: 10px 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      background: #fff;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .null-context-dim {
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .null-context-empty {
+      font-size: 13px;
+      color: #6b7280;
+    }
+
+    .ctx-table-wrap {
+      height: 260px;
+      max-height: 260px;
+      overflow-y: auto;
+      overflow-x: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .ctx-table {
+      width: max-content;
+      min-width: 100%;
+      table-layout: auto;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 13px;
+    }
+
+    .ctx-table th,
+    .ctx-table td {
+      border-right: 1px solid #e5e7eb;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .ctx-table th:first-child,
+    .ctx-table td:first-child {
+      border-left: 1px solid #e5e7eb;
+    }
+
+    .ctx-table thead tr:first-child th {
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .ctx-table th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #f8fafc;
+      color: #374151;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .ctx-table td:nth-child(1) {
+      white-space: normal;
+      word-break: break-word;
+      max-width: 520px;
+    }
+
+    .ctx-table td:nth-child(2),
+    .ctx-table td:nth-child(3) {
+      white-space: nowrap;
+      width: 1%;
+    }
+
+    .note-box {
+      margin-top: 16px;
+    }
+
+    .note-box label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .note-textarea {
+      width: 100%;
+      min-height: 96px;
+      resize: vertical;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      background: #fff;
+    }
+
+    .note-textarea:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .note-tip {
+      margin-top: 6px;
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .placeholder {
+      text-align: center;
+      padding: 40px 20px;
+      color: #6b7280;
+      font-size: 15px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px 20px;
+      color: #2563eb;
+      font-size: 15px;
+    }
+
+    @media (max-width: 1160px) {
+      .control-box {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .control-summary {
+        justify-self: start;
+        grid-column: 1 / -1;
+      }
+    }
+
+    @media (max-width: 1000px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+        max-height: none;
+      }
+
+      .null-context-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .control-box {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="panel">
+      <h1>表质量分析工具</h1>
+      <div class="sub">
+        单文件版：上传 CSV 后，直接在浏览器里生成字段画像和空值上下文分布。<br>
+        当前版本支持：自动识别候选上下文维度（distinct &lt; 100）、默认选中更适合作为空值上下文的维度、表格化展示空值上下文、单列字段卡片、待确认/已确认、批注、本地保存、导出 JSON、导出带批注 HTML、字段搜索、字段筛选、展开/折叠、刷新后自动恢复并继续改维度重算。
+      </div>
+
+      <div class="toolbar">
+        <input id="csv-file-input" type="file" accept=".csv,text/csv" />
+        <button id="analyze-btn" type="button">开始分析</button>
+        <button id="export-notes-btn" type="button">导出批注 JSON</button>
+        <button id="export-html-btn" type="button">导出带批注 HTML</button>
+        <div class="toolbar-note" id="file-note">尚未选择文件</div>
+      </div>
+
+      <div class="dim-box">
+        <div class="dim-title">空值上下文维度</div>
+        <div class="dim-sub">
+          导入文件后，系统会自动将 <strong>distinct &lt; 100</strong> 的字段识别为候选维度。默认会优先选中更像“上下文维度”的字段，而不是全部候选字段。
+        </div>
+        <div class="dim-actions">
+          <button id="select-all-dims-btn" type="button">全选</button>
+          <button id="clear-all-dims-btn" type="button">全不选</button>
+          <button id="reset-default-dims-btn" type="button">恢复默认</button>
+        </div>
+        <div class="dim-list" id="dim-list">
+          <div class="empty">尚未导入文件，无法识别候选维度。</div>
+        </div>
+      </div>
+
+      <div class="summary" id="summary-panel" style="display:none;">
+        <div class="summary-item">
+          <div class="summary-label">总行数</div>
+          <div class="summary-value" id="summary-total-rows">0</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">总字段数</div>
+          <div class="summary-value" id="summary-total-cols">0</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">问题字段（非空率 &lt; 100%）</div>
+          <div class="summary-value" id="summary-problem-fields">0</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">严重缺失（非空率 &lt; 10%）</div>
+          <div class="summary-value" id="summary-severe-fields">0</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">已确认</div>
+          <div class="summary-value" id="summary-confirmed">0</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">待确认</div>
+          <div class="summary-value" id="summary-pending">0</div>
+        </div>
+      </div>
+
+      <div class="control-box" id="control-box" style="display:none;">
+        <input id="field-search-input" type="text" placeholder="搜索字段名，例如：lat / click / source" />
+        <select id="field-filter-select">
+          <option value="all">全部字段</option>
+          <option value="problem">只看问题字段</option>
+          <option value="unconfirmed">只看待确认</option>
+          <option value="confirmed">只看已确认</option>
+        </select>
+        <button id="expand-all-btn" type="button">展开全部</button>
+        <button id="collapse-confirmed-btn" type="button">折叠已确认</button>
+        <div class="control-summary" id="control-summary">当前展示 0 / 0 个字段</div>
+      </div>
+    </div>
+
+    <div id="report-root">
+      <div class="panel placeholder">
+        先上传一个 CSV 文件，再点击“开始分析”。
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let uploadedRows = [];
+    let uploadedFileName = "";
+    let dimensionCandidates = [];
+    let currentReport = null;
+    let currentNotesState = {};
+    let currentStorageKey = "";
+    let currentViewFilters = {
+      search: "",
+      scope: "all"
+    };
+
+    const PAGE_META_KEY = "dq-page-meta-v3:" + window.location.pathname;
+    const DB_NAME = "dq-workbench-cache-db";
+    const DB_VERSION = 1;
+    const DB_STORE_NAME = "page_data_cache";
+    const DB_RECORD_KEY = "data:" + window.location.pathname;
+
+    function formatValue(value) {
+      if (value === null || value === undefined || value === "") {
+        return "空值";
+      }
+
+      if (typeof value === "number") {
+        if (Number.isInteger(value)) {
+          return String(value);
+        }
+        return String(value);
+      }
+
+      const str = String(value).trim();
+      if (str === "") return "空值";
+
+      if (/^-?\d+\.0+$/.test(str)) {
+        return str.replace(/\.0+$/, "");
+      }
+
+      return str;
+    }
+
+    function isEffectivelyEmpty(value) {
+      return value === null || value === undefined || String(value).trim() === "";
+    }
+
+    function guessFieldType(values) {
+      const nonEmpty = values.filter(v => !isEffectivelyEmpty(v));
+      if (nonEmpty.length === 0) return "string";
+
+      const sample = nonEmpty.slice(0, 20);
+
+      const allNumber = sample.every(v => !Number.isNaN(Number(v)));
+      if (allNumber) {
+        const allInteger = sample.every(v => Number.isInteger(Number(v)));
+        return allInteger ? "int" : "float";
+      }
+
+      const allBool = sample.every(v => ["true", "false", "0", "1"].includes(String(v).toLowerCase()));
+      if (allBool) return "bool";
+
+      return "string";
+    }
+
+    function getProblemLevel(fillRate) {
+      if (fillRate === 0) {
+        return { level: "critical", label: "严重缺失" };
+      }
+      if (fillRate < 10) {
+        return { level: "high", label: "高风险缺失" };
+      }
+      if (fillRate < 100) {
+        return { level: "medium", label: "有缺失" };
+      }
+      return { level: "ok", label: "完整" };
+    }
+
+    function topValues(values, topN = 10) {
+      const counter = new Map();
+      const nonEmpty = values.filter(v => !isEffectivelyEmpty(v));
+
+      nonEmpty.forEach(v => {
+        const key = formatValue(v);
+        counter.set(key, (counter.get(key) || 0) + 1);
+      });
+
+      const total = nonEmpty.length;
+
+      return [...counter.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, topN)
+        .map(([value, count]) => ({
+          value,
+          count,
+          pct: total > 0 ? Number((count / total * 100).toFixed(2)) : 0
+        }));
+    }
+
+    function sampleValues(values, maxSamples = 5) {
+      const unique = [];
+      const seen = new Set();
+
+      for (const v of values) {
+        if (isEffectivelyEmpty(v)) continue;
+        const text = formatValue(v);
+        if (!seen.has(text)) {
+          seen.add(text);
+          unique.push(text);
+        }
+        if (unique.length >= maxSamples) break;
+      }
+
+      return unique;
+    }
+
+    function getDistinctCount(values) {
+      const set = new Set(values.map(v => formatValue(v)));
+      return set.size;
+    }
+
+    function buildDimensionCandidates(rows) {
+      if (!rows || rows.length === 0) return [];
+
+      const fields = Object.keys(rows[0]);
+      const candidates = [];
+
+      for (const fieldName of fields) {
+        const values = rows.map(row => row[fieldName]);
+        const distinctCount = getDistinctCount(values);
+
+        if (distinctCount < 100) {
+          candidates.push({
+            fieldName,
+            distinctCount
+          });
+        }
+      }
+
+      candidates.sort((a, b) => {
+        if (a.distinctCount !== b.distinctCount) {
+          return a.distinctCount - b.distinctCount;
+        }
+        return a.fieldName.localeCompare(b.fieldName);
+      });
+
+      return candidates;
+    }
+
+    function chooseDefaultSelectedDims(candidates) {
+      const candidateMap = new Map(candidates.map(item => [item.fieldName, item]));
+      const preferredOrder = [
+        "site",
+        "plat",
+        "entry_source",
+        "is_in_view",
+        "devi_brand",
+        "page_type",
+        "search_type",
+        "list_name",
+        "list_result",
+        "home_type",
+        "os",
+        "ab_test"
+      ];
+
+      const excludeRegex = /(_id$|_time$|^cal_dt$|^ip$|^muid$|^lng$|^lat$|^new_tid$|^user_id$)/i;
+      const selected = [];
+
+      preferredOrder.forEach(name => {
+        if (candidateMap.has(name) && !selected.includes(name)) {
+          selected.push(name);
+        }
+      });
+
+      if (selected.length < 6) {
+        candidates.forEach(item => {
+          if (selected.length >= 6) return;
+          if (selected.includes(item.fieldName)) return;
+          if (excludeRegex.test(item.fieldName)) return;
+          if (item.distinctCount < 2) return;
+          if (item.distinctCount > 30) return;
+          selected.push(item.fieldName);
+        });
+      }
+
+      if (selected.length === 0) {
+        candidates.slice(0, 4).forEach(item => selected.push(item.fieldName));
+      }
+
+      return selected.slice(0, 6);
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function renderDimensionCandidates(candidates, selectedSet = null) {
+      const dimList = document.getElementById("dim-list");
+
+      if (!candidates || candidates.length === 0) {
+        dimList.innerHTML = '<div class="empty">当前文件没有识别到 distinct < 100 的候选维度。</div>';
+        return;
+      }
+
+      const html = candidates.map(item => {
+        const checked = selectedSet ? selectedSet.has(item.fieldName) : false;
+        return `
+          <label>
+            <input type="checkbox" value="${escapeHtml(item.fieldName)}" ${checked ? "checked" : ""} />
+            ${escapeHtml(item.fieldName)} <span style="color:#6b7280;">(distinct=${item.distinctCount})</span>
+          </label>
+        `;
+      }).join("");
+
+      dimList.innerHTML = html;
+    }
+
+    function buildNullContext(rows, targetField, dims, topN = 8) {
+      const emptyRows = rows.filter(row => isEffectivelyEmpty(row[targetField]));
+
+      if (emptyRows.length === 0) {
+        return {
+          emptyCount: 0,
+          dimensions: []
+        };
+      }
+
+      const dimensions = [];
+
+      for (const dim of dims) {
+        if (dim === targetField) continue;
+        if (!(dim in rows[0])) continue;
+
+        const counter = new Map();
+
+        emptyRows.forEach(row => {
+          const key = formatValue(row[dim]);
+          counter.set(key, (counter.get(key) || 0) + 1);
+        });
+
+        const top = [...counter.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, topN)
+          .map(([value, count]) => ({
+            value,
+            count,
+            pct: Number((count / emptyRows.length * 100).toFixed(2))
+          }));
+
+        dimensions.push({
+          dim,
+          topValues: top
+        });
+      }
+
+      return {
+        emptyCount: emptyRows.length,
+        dimensions
+      };
+    }
+
+    function profileRows(rows, nullContextDims) {
+      const fields = Object.keys(rows[0] || {});
+      const totalRows = rows.length;
+
+      const result = fields.map(fieldName => {
+        const values = rows.map(row => row[fieldName]);
+        const nullCount = values.filter(v => v === null || v === undefined || v === "").length;
+        const nonNullCount = totalRows - nullCount;
+        const fillRate = totalRows > 0 ? Number((nonNullCount / totalRows * 100).toFixed(4)) : 0;
+        const distinctSet = new Set(values.filter(v => !isEffectivelyEmpty(v)).map(v => formatValue(v)));
+        const distinctCount = distinctSet.size;
+        const isHighCardinality = distinctCount > 20;
+        const problem = getProblemLevel(fillRate);
+
+        return {
+          fieldName,
+          fieldType: guessFieldType(values),
+          nullCount,
+          nonNullCount,
+          fillRate,
+          distinctCount,
+          isHighCardinality,
+          topValues: isHighCardinality ? [] : topValues(values, 10),
+          sampleValues: sampleValues(values, 5),
+          nullContext: buildNullContext(rows, fieldName, nullContextDims, 8),
+          problemLevel: problem.level,
+          problemLabel: problem.label
+        };
+      });
+
+      result.sort((a, b) => {
+        if (a.fillRate !== b.fillRate) return a.fillRate - b.fillRate;
+        return a.fieldName.localeCompare(b.fieldName);
+      });
+
+      return {
+        summary: {
+          totalRows,
+          totalCols: fields.length,
+          nullContextDims
+        },
+        fields: result
+      };
+    }
+
+    function renderContextTable(dimItem) {
+      if (!dimItem.topValues || dimItem.topValues.length === 0) {
+        return '<div class="null-context-empty">这个维度没有可展示的分布</div>';
+      }
+
+      return `
+        <div class="ctx-table-wrap">
+          <table class="ctx-table">
+            <thead>
+              <tr>
+                <th>值</th>
+                <th>次数</th>
+                <th>占比</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${dimItem.topValues.map(item => `
+                <tr>
+                  <td>${escapeHtml(item.value)}</td>
+                  <td>${item.count}</td>
+                  <td>${item.pct}%</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function computeStorageKeyFromRows(rows, fileName) {
+      const fields = Object.keys(rows[0] || {});
+      return `dq-workbench-v3:${fileName}:${rows.length}:${fields.join("|")}`;
+    }
+
+    function computeStorageKeyFromReport(report, fileName) {
+      const fields = (report.fields || []).map(f => f.fieldName);
+      return `dq-workbench-v3:${fileName}:${report.summary.totalRows}:${fields.join("|")}`;
+    }
+
+    function loadEmbeddedJson(id) {
+      try {
+        const el = document.getElementById(id);
+        if (!el) return null;
+        const text = (el.textContent || "").trim();
+        if (!text || text === "{}") return null;
+        return JSON.parse(text);
+      } catch (e) {
+        console.error(`读取 ${id} 失败`, e);
+        return null;
+      }
+    }
+
+    function loadNotesState() {
+      if (!currentStorageKey) return {};
+      try {
+        const raw = localStorage.getItem(currentStorageKey);
+        if (!raw) return {};
+        return JSON.parse(raw);
+      } catch (e) {
+        console.error("读取本地批注失败", e);
+        return {};
+      }
+    }
+
+    function saveNotesState() {
+      if (!currentStorageKey) return;
+      localStorage.setItem(currentStorageKey, JSON.stringify(currentNotesState));
+    }
+
+    function savePageMeta() {
+      const payload = {
+        uploadedFileName,
+        currentStorageKey,
+        dimensionCandidates,
+        selectedDims: getSelectedDims(),
+        currentViewFilters
+      };
+
+      try {
+        localStorage.setItem(PAGE_META_KEY, JSON.stringify(payload));
+      } catch (e) {
+        console.error("保存页面元数据失败", e);
+      }
+    }
+
+    function loadPageMeta() {
+      try {
+        const raw = localStorage.getItem(PAGE_META_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw);
+      } catch (e) {
+        console.error("读取页面元数据失败", e);
+        return null;
+      }
+    }
+
+    function openCacheDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+        request.onupgradeneeded = () => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains(DB_STORE_NAME)) {
+            db.createObjectStore(DB_STORE_NAME);
+          }
+        };
+
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    async function saveRowsToIndexedDB(payload) {
+      const db = await openCacheDB();
+
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(DB_STORE_NAME, "readwrite");
+        const store = tx.objectStore(DB_STORE_NAME);
+        store.put(payload, DB_RECORD_KEY);
+
+        tx.oncomplete = () => {
+          db.close();
+          resolve();
+        };
+
+        tx.onerror = () => {
+          db.close();
+          reject(tx.error);
+        };
+      });
+    }
+
+    async function loadRowsFromIndexedDB() {
+      const db = await openCacheDB();
+
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(DB_STORE_NAME, "readonly");
+        const store = tx.objectStore(DB_STORE_NAME);
+        const req = store.get(DB_RECORD_KEY);
+
+        req.onsuccess = () => {
+          db.close();
+          resolve(req.result || null);
+        };
+
+        req.onerror = () => {
+          db.close();
+          reject(req.error);
+        };
+      });
+    }
+
+    function normalizeWorkbenchState(state) {
+      return {
+        status: state?.status === "confirmed" ? "confirmed" : "pending",
+        note: typeof state?.note === "string" ? state.note : "",
+        collapsed: typeof state?.collapsed === "boolean" ? state.collapsed : null
+      };
+    }
+
+    function getFieldWorkbenchState(fieldName) {
+      return normalizeWorkbenchState(currentNotesState[fieldName]);
+    }
+
+    function getEffectiveCollapsed(fieldName) {
+      const state = getFieldWorkbenchState(fieldName);
+      if (state.collapsed === null) {
+        return state.status === "confirmed";
+      }
+      return state.collapsed;
+    }
+
+    function updateSummaryWorkbench() {
+      if (!currentReport) return;
+
+      const total = currentReport.fields.length;
+      let confirmed = 0;
+
+      currentReport.fields.forEach(field => {
+        if (getFieldWorkbenchState(field.fieldName).status === "confirmed") {
+          confirmed += 1;
+        }
+      });
+
+      document.getElementById("summary-confirmed").textContent = confirmed;
+      document.getElementById("summary-pending").textContent = total - confirmed;
+    }
+
+    function updateFileNote(text) {
+      document.getElementById("file-note").textContent = text;
+    }
+
+    function updateControlSummary(visibleCount, totalCount) {
+      const el = document.getElementById("control-summary");
+      el.textContent = `当前展示 ${visibleCount} / ${totalCount} 个字段`;
+    }
+
+    function fieldMatchesView(field) {
+      const search = currentViewFilters.search.trim().toLowerCase();
+      const scope = currentViewFilters.scope;
+      const state = getFieldWorkbenchState(field.fieldName);
+
+      if (search && !field.fieldName.toLowerCase().includes(search)) {
+        return false;
+      }
+
+      if (scope === "problem" && !(field.fillRate < 100)) {
+        return false;
+      }
+
+      if (scope === "unconfirmed" && state.status !== "pending") {
+        return false;
+      }
+
+      if (scope === "confirmed" && state.status !== "confirmed") {
+        return false;
+      }
+
+      return true;
+    }
+
+    function renderReport(report) {
+      currentReport = report;
+      const root = document.getElementById("report-root");
+      const summaryPanel = document.getElementById("summary-panel");
+      const controlBox = document.getElementById("control-box");
+
+      document.getElementById("summary-total-rows").textContent = report.summary.totalRows;
+      document.getElementById("summary-total-cols").textContent = report.summary.totalCols;
+      document.getElementById("summary-problem-fields").textContent =
+        report.fields.filter(f => f.fillRate < 100).length;
+      document.getElementById("summary-severe-fields").textContent =
+        report.fields.filter(f => f.fillRate < 10).length;
+
+      summaryPanel.style.display = "grid";
+      controlBox.style.display = "grid";
+
+      const filteredFields = report.fields.filter(fieldMatchesView);
+
+      const tocHtml = filteredFields.map(field => {
+        const state = getFieldWorkbenchState(field.fieldName);
+        const tocClass =
+          field.problemLevel === "critical" ? "toc-item toc-critical" :
+          field.problemLevel === "high" ? "toc-item toc-high" :
+          field.problemLevel === "medium" ? "toc-item toc-medium" :
+          "toc-item toc-ok";
+
+        return `
+          <a class="${tocClass} ${state.status === "confirmed" ? "toc-confirmed" : ""}" href="#field-${escapeHtml(field.fieldName)}" data-toc-field="${escapeHtml(field.fieldName)}">
+            <strong>${escapeHtml(field.fieldName)}</strong>
+            <span class="toc-meta">
+              非空率：${field.fillRate}% ｜ distinct：${field.distinctCount} ｜ ${field.problemLabel}
+            </span>
+          </a>
+        `;
+      }).join("");
+
+      const fieldHtml = filteredFields.map(field => {
+        const state = getFieldWorkbenchState(field.fieldName);
+        const collapsed = getEffectiveCollapsed(field.fieldName);
+
+        const topValuesHtml = field.isHighCardinality
+          ? '<div class="empty">该字段 distinct 过高，当前版本不展示完整分布。</div>'
+          : field.topValues.length > 0
+            ? `<ul>${field.topValues.map(item => `
+                <li>值：${escapeHtml(item.value)} ｜ 次数：${item.count} ｜ 占比：${item.pct}%</li>
+              `).join("")}</ul>`
+            : '<div class="empty">没有可展示的分布</div>';
+
+        const sampleValuesHtml = field.sampleValues.length > 0
+          ? `<ul>${field.sampleValues.map(v => `<li>${escapeHtml(v)}</li>`).join("")}</ul>`
+          : '<div class="empty">没有非空示例值</div>';
+
+        const nullContextHtml =
+          field.nullContext.emptyCount > 0 && field.nullContext.dimensions.length > 0
+            ? `
+              <div class="null-context-box">
+                <div class="null-context-desc">
+                  当字段 <strong>${escapeHtml(field.fieldName)}</strong> 为空时，共有
+                  <strong>${field.nullContext.emptyCount}</strong> 条记录。下面展示这些空值记录在你当前勾选维度下的分布。
+                </div>
+                <div class="null-context-grid">
+                  ${field.nullContext.dimensions.map(dimItem => `
+                    <div class="null-context-card">
+                      <div class="null-context-dim">${escapeHtml(dimItem.dim)}</div>
+                      ${renderContextTable(dimItem)}
+                    </div>
+                  `).join("")}
+                </div>
+              </div>
+            `
+            : '<div class="null-context-empty">该字段没有空值，或当前未勾选可展示维度。</div>';
+
+        const collapsedSummaryParts = [];
+        collapsedSummaryParts.push(`<strong>状态：</strong>${state.status === "confirmed" ? "已确认" : "待确认"}`);
+        collapsedSummaryParts.push(`<strong>非空率：</strong>${field.fillRate}%`);
+        collapsedSummaryParts.push(`<strong>问题等级：</strong>${field.problemLabel}`);
+        if (state.note.trim()) {
+          collapsedSummaryParts.push(`<strong>批注：</strong>${escapeHtml(state.note)}`);
+        } else {
+          collapsedSummaryParts.push(`<strong>批注：</strong>暂无`);
+        }
+
+        return `
+          <section class="card problem-${field.problemLevel} status-${state.status} ${collapsed ? "collapsed" : ""}" id="field-${escapeHtml(field.fieldName)}" data-field="${escapeHtml(field.fieldName)}">
+            <div class="card-head">
+              <h3>${escapeHtml(field.fieldName)}</h3>
+              <div class="card-actions">
+                <button type="button" class="collapse-btn" data-collapse-field="${escapeHtml(field.fieldName)}">${collapsed ? "展开" : "折叠"}</button>
+                <div class="status-buttons">
+                  <button type="button" class="status-btn pending-btn ${state.status === "pending" ? "active" : ""}" data-state="pending">待确认</button>
+                  <button type="button" class="status-btn confirmed-btn ${state.status === "confirmed" ? "active" : ""}" data-state="confirmed">已确认</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="meta">
+              <span class="badge">类型：${field.fieldType}</span>
+              <span class="badge">非空率：${field.fillRate}%</span>
+              <span class="badge">distinct：${field.distinctCount}</span>
+              <span class="badge">空值数：${field.nullCount}</span>
+              <span class="badge ${field.problemLevel}">问题等级：${field.problemLabel}</span>
+              ${field.isHighCardinality ? '<span class="badge warn">高基数字段</span>' : ""}
+            </div>
+
+            <div class="collapsed-summary">
+              ${collapsedSummaryParts.join(" ｜ ")}
+            </div>
+
+            <div class="card-body">
+              <div class="progress-wrap">
+                <div class="progress-label">非空率</div>
+                <div class="progress-bar">
+                  <div class="progress-fill" style="width:${field.fillRate}%;"></div>
+                </div>
+              </div>
+
+              <div class="section-title">示例值</div>
+              ${sampleValuesHtml}
+
+              <div class="section-title">Top 值分布</div>
+              ${topValuesHtml}
+
+              <div class="section-title">空值上下文分布</div>
+              ${nullContextHtml}
+
+              <div class="note-box">
+                <label for="note-${escapeHtml(field.fieldName)}">批注</label>
+                <textarea id="note-${escapeHtml(field.fieldName)}" class="note-textarea" data-note-field="${escapeHtml(field.fieldName)}" placeholder="例如：这个字段像曝光链路字段；填充率低，需要找业务确认；疑似废弃字段">${escapeHtml(state.note)}</textarea>
+                <div class="note-tip">自动保存在当前浏览器。</div>
+              </div>
+            </div>
+          </section>
+        `;
+      }).join("");
+
+      root.innerHTML = `
+        <div class="layout">
+          <aside class="sidebar">
+            <h2>字段目录</h2>
+            <div class="toc-list">
+              ${tocHtml || '<div class="empty">当前筛选条件下没有字段。</div>'}
+            </div>
+          </aside>
+          <main class="content">
+            <div class="panel" style="margin-bottom:16px;">
+              当前空值上下文维度：${report.summary.nullContextDims.length > 0 ? report.summary.nullContextDims.map(escapeHtml).join("、") : "未勾选"}
+            </div>
+            <div class="field-list">
+              ${fieldHtml || '<div class="panel empty">当前筛选条件下没有字段。</div>'}
+            </div>
+          </main>
+        </div>
+      `;
+
+      bindContextTableScroll();
+      bindFieldCardEvents();
+      updateSummaryWorkbench();
+      updateControlSummary(filteredFields.length, report.fields.length);
+    }
+
+    function bindContextTableScroll() {
+      const wraps = document.querySelectorAll(".ctx-table-wrap");
+
+      wraps.forEach((wrap) => {
+        wrap.addEventListener(
+          "wheel",
+          (event) => {
+            const canScroll = wrap.scrollHeight > wrap.clientHeight;
+            if (!canScroll) return;
+
+            const delta = event.deltaY;
+            const atTop = wrap.scrollTop <= 0;
+            const atBottom = wrap.scrollTop + wrap.clientHeight >= wrap.scrollHeight - 1;
+
+            if ((delta < 0 && !atTop) || (delta > 0 && !atBottom)) {
+              event.preventDefault();
+              wrap.scrollTop += delta;
+            }
+          },
+          { passive: false }
+        );
+      });
+    }
+
+    function persistFieldState(fieldName, partial) {
+      currentNotesState[fieldName] = {
+        ...normalizeWorkbenchState(currentNotesState[fieldName]),
+        ...partial
+      };
+      saveNotesState();
+      savePageMeta();
+    }
+
+    function setFieldStatus(fieldName, status) {
+      const nextCollapsed = status === "confirmed" ? true : false;
+
+      currentNotesState[fieldName] = {
+        ...normalizeWorkbenchState(currentNotesState[fieldName]),
+        status,
+        collapsed: nextCollapsed
+      };
+      saveNotesState();
+      savePageMeta();
+      renderReport(currentReport);
+    }
+
+    function toggleFieldCollapse(fieldName) {
+      const current = normalizeWorkbenchState(currentNotesState[fieldName]);
+      const currentCollapsed = current.collapsed === null ? current.status === "confirmed" : current.collapsed;
+
+      currentNotesState[fieldName] = {
+        ...current,
+        collapsed: !currentCollapsed
+      };
+      saveNotesState();
+      savePageMeta();
+      renderReport(currentReport);
+    }
+
+    function bindFieldCardEvents() {
+      document.querySelectorAll(".status-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const card = btn.closest(".card");
+          const fieldName = card.dataset.field;
+          const status = btn.dataset.state;
+          setFieldStatus(fieldName, status);
+        });
+      });
+
+      document.querySelectorAll(".collapse-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const fieldName = btn.dataset.collapseField;
+          toggleFieldCollapse(fieldName);
+        });
+      });
+
+      document.querySelectorAll(".note-textarea").forEach(textarea => {
+        textarea.addEventListener("input", () => {
+          const fieldName = textarea.dataset.noteField;
+          persistFieldState(fieldName, { note: textarea.value });
+          updateSummaryWorkbench();
+        });
+      });
+    }
+
+    function getSelectedDims() {
+      return Array.from(document.querySelectorAll('#dim-list input[type="checkbox"]:checked'))
+        .map(el => el.value);
+    }
+
+    function showLoading() {
+      document.getElementById("report-root").innerHTML = '<div class="panel loading">正在分析，请稍候...</div>';
+    }
+
+    function showError(message) {
+      document.getElementById("report-root").innerHTML = `<div class="panel placeholder" style="color:#b91c1c;">${escapeHtml(message)}</div>`;
+    }
+
+    function parseCsvFile(file) {
+      return new Promise((resolve, reject) => {
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          dynamicTyping: false,
+          complete: function(results) {
+            if (results.errors && results.errors.length > 0) {
+              reject(results.errors);
+              return;
+            }
+            resolve(results.data || []);
+          },
+          error: function(error) {
+            reject(error);
+          }
+        });
+      });
+    }
+
+    function rerenderWithCurrentDims() {
+      if (!uploadedRows || uploadedRows.length === 0) return;
+
+      const dims = getSelectedDims();
+      const report = profileRows(uploadedRows, dims);
+      currentReport = report;
+      renderReport(report);
+      savePageMeta();
+
+      updateFileNote(
+        `已分析文件：${uploadedFileName} ｜ 行数：${report.summary.totalRows} ｜ 字段数：${report.summary.totalCols} ｜ 候选维度数：${dimensionCandidates.length} ｜ 已按新维度重绘`
+      );
+    }
+
+    function rerenderWithCurrentFilters() {
+      if (!currentReport) return;
+      renderReport(currentReport);
+      savePageMeta();
+    }
+
+    function downloadTextFile(filename, content, mimeType = "text/plain;charset=utf-8") {
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportNotesJson() {
+      if (!currentReport) {
+        alert("当前还没有分析结果。");
+        return;
+      }
+
+      const payload = {
+        fileName: uploadedFileName || "unknown",
+        storageKey: currentStorageKey,
+        notes: currentNotesState,
+        viewFilters: currentViewFilters,
+        selectedDims: getSelectedDims()
+      };
+
+      downloadTextFile(
+        "field_notes.json",
+        JSON.stringify(payload, null, 2),
+        "application/json;charset=utf-8"
+      );
+    }
+
+    function exportAnnotatedHtml() {
+      if (!currentReport) {
+        alert("当前还没有分析结果。");
+        return;
+      }
+
+      const clonedRoot = document.documentElement.cloneNode(true);
+
+      const reportScript = clonedRoot.querySelector("#embedded-report-data");
+      const notesScript = clonedRoot.querySelector("#embedded-notes-data");
+      const metaScript = clonedRoot.querySelector("#embedded-meta-data");
+
+      const metaPayload = {
+        fileName: uploadedFileName || "embedded_report",
+        storageKey: currentStorageKey,
+        dimensionCandidates: dimensionCandidates,
+        viewFilters: currentViewFilters,
+        selectedDims: getSelectedDims()
+      };
+
+      if (reportScript) {
+        reportScript.textContent = JSON.stringify(currentReport, null, 2);
+      }
+
+      if (notesScript) {
+        notesScript.textContent = JSON.stringify(currentNotesState, null, 2);
+      }
+
+      if (metaScript) {
+        metaScript.textContent = JSON.stringify(metaPayload, null, 2);
+      }
+
+      const html = "<!DOCTYPE html>\n" + clonedRoot.outerHTML;
+      downloadTextFile("report_with_notes.html", html, "text/html;charset=utf-8");
+    }
+
+    async function analyzeCurrentFile() {
+      const input = document.getElementById("csv-file-input");
+      const file = input.files[0];
+
+      if (!file) {
+        alert("请先选择一个 CSV 文件。");
+        return;
+      }
+
+      const analyzeBtn = document.getElementById("analyze-btn");
+
+      try {
+        analyzeBtn.disabled = true;
+        updateFileNote(`正在分析：${file.name}`);
+        showLoading();
+
+        const rows = await parseCsvFile(file);
+
+        if (!rows || rows.length === 0) {
+          showError("CSV 解析成功，但没有读到有效数据。");
+          return;
+        }
+
+        uploadedRows = rows;
+        uploadedFileName = file.name;
+        dimensionCandidates = buildDimensionCandidates(rows);
+
+        const defaultDims = chooseDefaultSelectedDims(dimensionCandidates);
+        renderDimensionCandidates(dimensionCandidates, new Set(defaultDims));
+
+        currentStorageKey = computeStorageKeyFromRows(rows, file.name);
+        currentNotesState = loadNotesState();
+
+        const dims = getSelectedDims();
+        const report = profileRows(rows, dims);
+        currentReport = report;
+
+        await saveRowsToIndexedDB({
+          uploadedRows: rows,
+          uploadedFileName,
+          dimensionCandidates
+        });
+
+        renderReport(report);
+        savePageMeta();
+
+        updateFileNote(
+          `已分析文件：${uploadedFileName} ｜ 行数：${report.summary.totalRows} ｜ 字段数：${report.summary.totalCols} ｜ 候选维度数：${dimensionCandidates.length}`
+        );
+      } catch (e) {
+        console.error(e);
+        showError("CSV 解析失败，请检查文件格式是否正确。");
+        updateFileNote("分析失败");
+      } finally {
+        analyzeBtn.disabled = false;
+      }
+    }
+
+    async function restoreFromDataCache() {
+      try {
+        const dataCache = await loadRowsFromIndexedDB();
+        if (!dataCache || !dataCache.uploadedRows || dataCache.uploadedRows.length === 0) {
+          return false;
+        }
+
+        uploadedRows = dataCache.uploadedRows;
+        uploadedFileName = dataCache.uploadedFileName || "cached_report";
+        dimensionCandidates = dataCache.dimensionCandidates || buildDimensionCandidates(uploadedRows);
+
+        currentStorageKey = computeStorageKeyFromRows(uploadedRows, uploadedFileName);
+        currentNotesState = loadNotesState();
+
+        const meta = loadPageMeta();
+        const availableSet = new Set(dimensionCandidates.map(item => item.fieldName));
+
+        let selectedDims = [];
+        if (meta?.selectedDims?.length) {
+          selectedDims = meta.selectedDims.filter(dim => availableSet.has(dim));
+        }
+        if (selectedDims.length === 0) {
+          selectedDims = chooseDefaultSelectedDims(dimensionCandidates);
+        }
+
+        currentViewFilters = meta?.currentViewFilters || { search: "", scope: "all" };
+
+        renderDimensionCandidates(dimensionCandidates, new Set(selectedDims));
+
+        document.getElementById("field-search-input").value = currentViewFilters.search || "";
+        document.getElementById("field-filter-select").value = currentViewFilters.scope || "all";
+
+        currentReport = profileRows(uploadedRows, selectedDims);
+        renderReport(currentReport);
+        savePageMeta();
+
+        updateFileNote(
+          `已从本地缓存恢复：${uploadedFileName} ｜ 行数：${currentReport.summary.totalRows} ｜ 字段数：${currentReport.summary.totalCols}`
+        );
+
+        return true;
+      } catch (e) {
+        console.error("从 IndexedDB 恢复失败", e);
+        return false;
+      }
+    }
+
+    function initFromEmbedded() {
+      const embeddedReport = loadEmbeddedJson("embedded-report-data");
+      const embeddedNotes = loadEmbeddedJson("embedded-notes-data");
+      const embeddedMeta = loadEmbeddedJson("embedded-meta-data");
+
+      if (!embeddedReport) return false;
+
+      currentReport = embeddedReport;
+      uploadedFileName = embeddedMeta?.fileName || "embedded_report";
+      dimensionCandidates = embeddedMeta?.dimensionCandidates || [];
+      currentStorageKey =
+        embeddedMeta?.storageKey || computeStorageKeyFromReport(embeddedReport, uploadedFileName);
+
+      currentViewFilters = {
+        search: embeddedMeta?.viewFilters?.search || "",
+        scope: embeddedMeta?.viewFilters?.scope || "all"
+      };
+
+      currentNotesState = embeddedNotes || {};
+
+      const selectedDims = new Set(
+        embeddedMeta?.selectedDims ||
+        embeddedReport.summary.nullContextDims ||
+        []
+      );
+
+      renderDimensionCandidates(dimensionCandidates, selectedDims);
+
+      document.getElementById("field-search-input").value = currentViewFilters.search || "";
+      document.getElementById("field-filter-select").value = currentViewFilters.scope || "all";
+
+      renderReport(embeddedReport);
+      document.getElementById("control-box").style.display = "grid";
+
+      updateFileNote(
+        `已加载导出报告：${uploadedFileName} ｜ 行数：${embeddedReport.summary.totalRows} ｜ 字段数：${embeddedReport.summary.totalCols}`
+      );
+
+      return true;
+    }
+
+    function bindEvents() {
+      const input = document.getElementById("csv-file-input");
+      const analyzeBtn = document.getElementById("analyze-btn");
+      const dimList = document.getElementById("dim-list");
+      const selectAllDimsBtn = document.getElementById("select-all-dims-btn");
+      const clearAllDimsBtn = document.getElementById("clear-all-dims-btn");
+      const resetDefaultDimsBtn = document.getElementById("reset-default-dims-btn");
+      const exportNotesBtn = document.getElementById("export-notes-btn");
+      const exportHtmlBtn = document.getElementById("export-html-btn");
+      const searchInput = document.getElementById("field-search-input");
+      const filterSelect = document.getElementById("field-filter-select");
+      const expandAllBtn = document.getElementById("expand-all-btn");
+      const collapseConfirmedBtn = document.getElementById("collapse-confirmed-btn");
+
+      input.addEventListener("change", () => {
+        const file = input.files[0];
+        if (file) {
+          updateFileNote(`已选择文件：${file.name}`);
+        } else {
+          updateFileNote("尚未选择文件");
+        }
+      });
+
+      analyzeBtn.addEventListener("click", analyzeCurrentFile);
+
+      dimList.addEventListener("change", () => {
+        rerenderWithCurrentDims();
+      });
+
+      selectAllDimsBtn.addEventListener("click", () => {
+        document.querySelectorAll('#dim-list input[type="checkbox"]').forEach(el => {
+          el.checked = true;
+        });
+        rerenderWithCurrentDims();
+      });
+
+      clearAllDimsBtn.addEventListener("click", () => {
+        document.querySelectorAll('#dim-list input[type="checkbox"]').forEach(el => {
+          el.checked = false;
+        });
+        rerenderWithCurrentDims();
+      });
+
+      resetDefaultDimsBtn.addEventListener("click", () => {
+        const defaults = chooseDefaultSelectedDims(dimensionCandidates);
+        const defaultSet = new Set(defaults);
+
+        document.querySelectorAll('#dim-list input[type="checkbox"]').forEach(el => {
+          el.checked = defaultSet.has(el.value);
+        });
+
+        rerenderWithCurrentDims();
+      });
+
+      exportNotesBtn.addEventListener("click", exportNotesJson);
+      exportHtmlBtn.addEventListener("click", exportAnnotatedHtml);
+
+      searchInput.addEventListener("input", () => {
+        currentViewFilters.search = searchInput.value;
+        rerenderWithCurrentFilters();
+      });
+
+      filterSelect.addEventListener("change", () => {
+        currentViewFilters.scope = filterSelect.value;
+        rerenderWithCurrentFilters();
+      });
+
+      expandAllBtn.addEventListener("click", () => {
+        if (!currentReport) return;
+
+        currentReport.fields.forEach(field => {
+          currentNotesState[field.fieldName] = {
+            ...normalizeWorkbenchState(currentNotesState[field.fieldName]),
+            collapsed: false
+          };
+        });
+
+        saveNotesState();
+        savePageMeta();
+        rerenderWithCurrentFilters();
+      });
+
+      collapseConfirmedBtn.addEventListener("click", () => {
+        if (!currentReport) return;
+
+        currentReport.fields.forEach(field => {
+          const state = normalizeWorkbenchState(currentNotesState[field.fieldName]);
+          currentNotesState[field.fieldName] = {
+            ...state,
+            collapsed: state.status === "confirmed"
+          };
+        });
+
+        saveNotesState();
+        savePageMeta();
+        rerenderWithCurrentFilters();
+      });
+    }
+
+    bindEvents();
+
+    (async () => {
+      const restoredFromEmbedded = initFromEmbedded();
+      if (!restoredFromEmbedded) {
+        await restoreFromDataCache();
+      }
+    })();
+  </script>
+</body>
+</html>

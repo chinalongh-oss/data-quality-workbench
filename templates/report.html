@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>表质量报告工作台</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f7fb;
+      color: #1f2937;
+    }
+
+    .page {
+      max-width: 1680px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .header {
+      background: white;
+      border-radius: 14px;
+      padding: 20px 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+      border: 1px solid #e5e7eb;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 28px;
+    }
+
+    .header-sub {
+      margin-top: 8px;
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .toolbar button {
+      border: 1px solid #d1d5db;
+      background: #ffffff;
+      color: #111827;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .toolbar button:hover {
+      background: #f9fafb;
+    }
+
+    .top-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    .stat-card {
+      background: #f8fafc;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+
+    .stat-label {
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 26px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 20px;
+      background: white;
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+      border: 1px solid #e5e7eb;
+      max-height: calc(100vh - 40px);
+      overflow: auto;
+    }
+
+    .sidebar h2 {
+      margin: 0 0 14px 0;
+      font-size: 18px;
+    }
+
+    .toc-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toc-item {
+      display: block;
+      text-decoration: none;
+      color: #1f2937;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #eef2f7;
+      background: #fafbff;
+      font-size: 14px;
+      transition: all 0.2s ease;
+    }
+
+    .toc-item:hover {
+      background: #eef2ff;
+    }
+
+    .toc-item.toc-confirmed {
+      border-left: 4px solid #22c55e;
+      background: #f0fdf4;
+    }
+
+    .toc-item.toc-pending {
+      border-left: 4px solid #f59e0b;
+    }
+
+    .toc-item.toc-critical {
+      background: #fff1f2;
+      border-color: #fecdd3;
+    }
+
+    .toc-meta {
+      display: block;
+      margin-top: 4px;
+      color: #6b7280;
+      font-size: 12px;
+    }
+
+    .content {
+      min-width: 0;
+    }
+
+    .field-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+      border: 1px solid #e5e7eb;
+      scroll-margin-top: 24px;
+      transition: all 0.2s ease;
+    }
+
+    .card.pending {
+      border-left: 6px solid #f59e0b;
+    }
+
+    .card.confirmed {
+      border-left: 6px solid #22c55e;
+      background: #fcfffc;
+    }
+
+    .card.problem-critical {
+      border-top: 4px solid #ef4444;
+    }
+
+    .card.problem-high {
+      border-top: 4px solid #f97316;
+    }
+
+    .card.problem-medium {
+      border-top: 4px solid #3b82f6;
+    }
+
+    .card.problem-ok {
+      border-top: 4px solid #cbd5e1;
+    }
+
+    .card.collapsed .card-body {
+      display: none;
+    }
+
+    .card.collapsed .collapse-summary {
+      display: block;
+    }
+
+    .collapse-summary {
+      display: none;
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #f8fafc;
+      border: 1px solid #e5e7eb;
+      color: #374151;
+      font-size: 14px;
+    }
+
+    .card h2 {
+      margin: 0;
+      font-size: 20px;
+      word-break: break-word;
+    }
+
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .status-buttons {
+      display: inline-flex;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .status-btn {
+      padding: 8px 12px;
+      border: none;
+      background: white;
+      cursor: pointer;
+      font-size: 13px;
+      color: #374151;
+    }
+
+    .status-btn + .status-btn {
+      border-left: 1px solid #d1d5db;
+    }
+
+    .status-btn.active.pending-btn {
+      background: #fff7ed;
+      color: #c2410c;
+      font-weight: 600;
+    }
+
+    .status-btn.active.confirmed-btn {
+      background: #f0fdf4;
+      color: #15803d;
+      font-weight: 600;
+    }
+
+    .collapse-btn {
+      border: 1px solid #d1d5db;
+      background: white;
+      color: #374151;
+      padding: 8px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .collapse-btn:hover {
+      background: #f9fafb;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: #f3f4f6;
+      color: #374151;
+    }
+
+    .badge.warn {
+      background: #fff7ed;
+      color: #c2410c;
+    }
+
+    .badge.critical {
+      background: #fff1f2;
+      color: #be123c;
+    }
+
+    .badge.high {
+      background: #fff7ed;
+      color: #c2410c;
+    }
+
+    .badge.medium {
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+
+    .badge.ok {
+      background: #f0fdf4;
+      color: #15803d;
+    }
+
+    .progress-wrap {
+      margin-top: 10px;
+      margin-bottom: 14px;
+    }
+
+    .progress-label {
+      font-size: 13px;
+      margin-bottom: 6px;
+      color: #374151;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 10px;
+      background: #e5e7eb;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: #2563eb;
+    }
+
+    .section-title {
+      margin-top: 14px;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    li {
+      margin-bottom: 6px;
+      word-break: break-word;
+    }
+
+    .empty {
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    .note-box {
+      margin-top: 16px;
+    }
+
+    .note-box label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .note-textarea {
+      width: 100%;
+      min-height: 100px;
+      resize: vertical;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      background: #ffffff;
+    }
+
+    .note-textarea:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .note-tip {
+      margin-top: 6px;
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .hidden-file-input {
+      display: none;
+    }
+
+    @media (max-width: 1000px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+        max-height: none;
+      }
+    }
+  </style>
+  <style>
+  .null-context-box {
+    margin-top: 16px;
+    padding: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #f8fafc;
+  }
+
+  .null-context-desc {
+    margin-bottom: 10px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #4b5563;
+  }
+
+  .null-context-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+  }
+
+  .null-context-card {
+    padding: 10px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #ffffff;
+  }
+
+  .null-context-dim {
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  .null-context-list {
+    margin: 0;
+    padding-left: 18px;
+  }
+
+  .null-context-list li {
+    margin-bottom: 6px;
+    font-size: 13px;
+    line-height: 1.45;
+    word-break: break-word;
+  }
+
+  .null-context-empty {
+    font-size: 13px;
+    color: #6b7280;
+  }
+
+  .header-null-context-note {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #6b7280;
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <div class="header-top">
+        <div>
+          <h1>表质量报告工作台</h1>
+          <div class="header-sub">第三版：统计摘要、问题高亮、已确认自动折叠</div>
+<div class="header-null-context-note">
+  空值上下文维度：
+  {% if report.summary.null_context_dims %}
+    {{ report.summary.null_context_dims | join("、") }}
+  {% else %}
+    未配置
+  {% endif %}
+</div>
+        </div>
+
+       <div class="toolbar">
+  <button id="expand-all-btn" type="button">展开全部</button>
+  <button id="collapse-confirmed-btn" type="button">折叠已确认</button>
+  <button id="export-btn" type="button">导出批注 JSON</button>
+  <button id="export-html-btn" type="button">导出带批注 HTML</button>
+  <button id="import-btn" type="button">从文件导入</button>
+  <button id="reset-btn" type="button">清空本地状态</button>
+  <input id="import-file-input" class="hidden-file-input" type="file" accept=".json,application/json" />
+</div>
+
+<script id="embedded-report-state" type="application/json">{}</script>
+      </div>
+
+      <div class="top-stats">
+        <div class="stat-card">
+          <div class="stat-label">字段总数</div>
+          <div class="stat-value" id="stat-total-fields">{{ report.summary.total_cols }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">已确认</div>
+          <div class="stat-value" id="stat-confirmed">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">待确认</div>
+          <div class="stat-value" id="stat-pending">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">问题字段（非空率 &lt; 100%）</div>
+          <div class="stat-value" id="stat-problem">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">严重缺失（非空率 &lt; 10%）</div>
+          <div class="stat-value" id="stat-severe">0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <h2>字段目录</h2>
+        <div class="toc-list">
+          {% for field in report.fields %}
+          {% if field.fill_rate == 0 %}
+            {% set problem_text = '严重缺失' %}
+            {% set toc_problem_class = 'toc-critical' %}
+          {% elif field.fill_rate < 10 %}
+            {% set problem_text = '高风险' %}
+            {% set toc_problem_class = '' %}
+          {% elif field.fill_rate < 100 %}
+            {% set problem_text = '有缺失' %}
+            {% set toc_problem_class = '' %}
+          {% else %}
+            {% set problem_text = '完整' %}
+            {% set toc_problem_class = '' %}
+          {% endif %}
+
+          <a
+            class="toc-item toc-pending {{ toc_problem_class }}"
+            href="#field-{{ field.field_name }}"
+            data-toc-field-name="{{ field.field_name }}"
+          >
+            <strong>{{ field.field_name }}</strong>
+            <span class="toc-meta">
+              非空率：{{ field.fill_rate }}% ｜ distinct：{{ field.distinct_count }} ｜ {{ problem_text }}
+            </span>
+          </a>
+          {% endfor %}
+        </div>
+      </aside>
+
+      <main class="content">
+        <div class="field-list">
+          {% for field in report.fields %}
+          {% if field.fill_rate == 0 %}
+            {% set problem_level = 'critical' %}
+            {% set problem_label = '严重缺失' %}
+            {% set problem_badge_class = 'critical' %}
+          {% elif field.fill_rate < 10 %}
+            {% set problem_level = 'high' %}
+            {% set problem_label = '高风险缺失' %}
+            {% set problem_badge_class = 'high' %}
+          {% elif field.fill_rate < 100 %}
+            {% set problem_level = 'medium' %}
+            {% set problem_label = '有缺失' %}
+            {% set problem_badge_class = 'medium' %}
+          {% else %}
+            {% set problem_level = 'ok' %}
+            {% set problem_label = '完整' %}
+            {% set problem_badge_class = 'ok' %}
+          {% endif %}
+
+          <section
+            class="card problem-{{ problem_level }}"
+            id="field-{{ field.field_name }}"
+            data-field-name="{{ field.field_name }}"
+            data-fill-rate="{{ field.fill_rate }}"
+            data-problem-level="{{ problem_level }}"
+          >
+            <div class="card-head">
+              <h2>{{ field.field_name }}</h2>
+
+              <div class="card-actions">
+                <button type="button" class="collapse-btn">折叠</button>
+
+                <div class="status-buttons">
+                  <button type="button" class="status-btn pending-btn" data-state="pending">待确认</button>
+                  <button type="button" class="status-btn confirmed-btn" data-state="confirmed">已确认</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="meta">
+              <span class="badge">类型：{{ field.field_type }}</span>
+              <span class="badge">非空率：{{ field.fill_rate }}%</span>
+              <span class="badge">distinct：{{ field.distinct_count }}</span>
+              <span class="badge">空值数：{{ field.null_count }}</span>
+              <span class="badge {{ problem_badge_class }}">问题等级：{{ problem_label }}</span>
+              {% if field.is_high_cardinality %}
+              <span class="badge warn">高基数字段</span>
+              {% endif %}
+            </div>
+
+            <div class="collapse-summary">
+              该字段已折叠。当前状态会保留；点击“展开”可查看详细内容与批注。
+            </div>
+
+            <div class="card-body">
+              <div class="progress-wrap">
+                <div class="progress-label">非空率</div>
+                <div class="progress-bar">
+                  <div class="progress-fill" style="width: {{ field.fill_rate }}%;"></div>
+                </div>
+              </div>
+
+              <div class="section-title">示例值</div>
+              {% if field.sample_values %}
+              <ul>
+                {% for value in field.sample_values %}
+                <li>{{ value }}</li>
+                {% endfor %}
+              </ul>
+              {% else %}
+              <div class="empty">没有非空示例值</div>
+              {% endif %}
+
+              <div class="section-title">Top 值分布</div>
+              {% if field.is_high_cardinality %}
+              <div class="empty">该字段 distinct 过高，当前版本不展示完整分布。</div>
+              {% elif field.top_values %}
+              <ul>
+                {% for item in field.top_values %}
+                <li>值：{{ item.value }} ｜ 次数：{{ item.count }} ｜ 占比：{{ item.pct }}%</li>
+                {% endfor %}
+              </ul>
+              {% else %}
+              <div class="empty">没有可展示的分布</div>
+              {% endif %}
+              <div class="section-title">空值上下文分布</div>
+{% if field.null_context and field.null_context.empty_count > 0 and field.null_context.dimensions %}
+<div class="null-context-box">
+  <div class="null-context-desc">
+    当字段 <strong>{{ field.field_name }}</strong> 为空时，共有
+    <strong>{{ field.null_context.empty_count }}</strong> 条记录。
+    下面展示这些空值记录在你选择维度下的分布。
+  </div>
+
+  <div class="null-context-grid">
+    {% for dim_item in field.null_context.dimensions %}
+    <div class="null-context-card">
+      <div class="null-context-dim">{{ dim_item.dim }}</div>
+
+      {% if dim_item.top_values %}
+      <ul class="null-context-list">
+        {% for item in dim_item.top_values %}
+        <li>
+          值：{{ item.value }} ｜ 次数：{{ item.count }} ｜ 占比：{{ item.pct }}%
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <div class="null-context-empty">这个维度没有可展示的分布</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% else %}
+<div class="null-context-empty">该字段没有空值，或未配置空值上下文维度。</div>
+{% endif %}
+
+              <div class="note-box">
+                <label for="note-{{ loop.index0 }}">批注</label>
+                <textarea
+                  id="note-{{ loop.index0 }}"
+                  class="note-textarea"
+                  placeholder="例如：这个字段像曝光链路字段；填充率低，需要找业务确认；疑似废弃字段"
+                ></textarea>
+                <div class="note-tip">自动保存在当前浏览器。</div>
+              </div>
+            </div>
+          </section>
+          {% endfor %}
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const STORAGE_KEY = "data_quality_report_notes_v2:" + window.location.pathname;
+
+    const cards = Array.from(document.querySelectorAll(".card"));
+    const tocItems = Array.from(document.querySelectorAll(".toc-item[data-toc-field-name]"));
+
+    const cardMap = new Map();
+    const tocMap = new Map();
+
+    cards.forEach((card) => {
+      cardMap.set(card.dataset.fieldName, card);
+    });
+
+    tocItems.forEach((toc) => {
+      tocMap.set(toc.dataset.tocFieldName, toc);
+    });
+
+    function loadStore() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return {};
+        return JSON.parse(raw);
+      } catch (e) {
+        console.error("读取本地状态失败", e);
+        return {};
+      }
+    }
+
+    function saveStore(store) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    }
+
+    function loadEmbeddedStore() {
+      try {
+        const el = document.getElementById("embedded-report-state");
+        if (!el) return {};
+        const text = (el.textContent || "").trim();
+        if (!text) return {};
+        return JSON.parse(text);
+      } catch (e) {
+        console.error("读取嵌入状态失败", e);
+        return {};
+      }
+    }
+
+    function normalizeItem(item) {
+      return {
+        state: item && item.state === "confirmed" ? "confirmed" : "pending",
+        note: item && typeof item.note === "string" ? item.note : "",
+        collapsed: item && typeof item.collapsed === "boolean" ? item.collapsed : null
+      };
+    }
+
+    function updateCollapseButtonText(card) {
+      const btn = card.querySelector(".collapse-btn");
+      if (!btn) return;
+      btn.textContent = card.classList.contains("collapsed") ? "展开" : "折叠";
+    }
+
+    function readCardState(card) {
+      const fieldName = card.dataset.fieldName;
+      const textarea = card.querySelector(".note-textarea");
+      const isConfirmed = card.classList.contains("confirmed");
+      const isCollapsed = card.classList.contains("collapsed");
+
+      return {
+        fieldName,
+        state: isConfirmed ? "confirmed" : "pending",
+        note: textarea ? textarea.value : "",
+        collapsed: isCollapsed
+      };
+    }
+
+    function applyCardState(card, item) {
+      const normalized = normalizeItem(item);
+
+      const pendingBtn = card.querySelector(".pending-btn");
+      const confirmedBtn = card.querySelector(".confirmed-btn");
+      const textarea = card.querySelector(".note-textarea");
+
+      card.classList.remove("pending", "confirmed");
+      pendingBtn.classList.remove("active");
+      confirmedBtn.classList.remove("active");
+
+      if (normalized.state === "confirmed") {
+        card.classList.add("confirmed");
+        confirmedBtn.classList.add("active");
+      } else {
+        card.classList.add("pending");
+        pendingBtn.classList.add("active");
+      }
+
+      if (textarea) {
+        textarea.value = normalized.note;
+      }
+
+      let shouldCollapse;
+      if (normalized.collapsed === null) {
+        shouldCollapse = normalized.state === "confirmed";
+      } else {
+        shouldCollapse = normalized.collapsed;
+      }
+
+      if (shouldCollapse) {
+        card.classList.add("collapsed");
+      } else {
+        card.classList.remove("collapsed");
+      }
+
+      updateCollapseButtonText(card);
+    }
+
+    function persistSingleCard(card) {
+      const store = loadStore();
+      const current = readCardState(card);
+
+      store[current.fieldName] = {
+        state: current.state,
+        note: current.note,
+        collapsed: current.collapsed
+      };
+
+      saveStore(store);
+    }
+
+    function collectCurrentStore() {
+      const result = {};
+
+      cards.forEach((card) => {
+        const current = readCardState(card);
+        result[current.fieldName] = {
+          state: current.state,
+          note: current.note,
+          collapsed: current.collapsed
+        };
+      });
+
+      return result;
+    }
+
+    function updateSummaryStats() {
+      const total = cards.length;
+      const confirmed = cards.filter(card => card.classList.contains("confirmed")).length;
+      const pending = total - confirmed;
+      const problem = cards.filter(card => Number(card.dataset.fillRate) < 100).length;
+      const severe = cards.filter(card => Number(card.dataset.fillRate) < 10).length;
+
+      const totalEl = document.getElementById("stat-total-fields");
+      const confirmedEl = document.getElementById("stat-confirmed");
+      const pendingEl = document.getElementById("stat-pending");
+      const problemEl = document.getElementById("stat-problem");
+      const severeEl = document.getElementById("stat-severe");
+
+      if (totalEl) totalEl.textContent = total;
+      if (confirmedEl) confirmedEl.textContent = confirmed;
+      if (pendingEl) pendingEl.textContent = pending;
+      if (problemEl) problemEl.textContent = problem;
+      if (severeEl) severeEl.textContent = severe;
+    }
+
+    function updateSidebarStatus() {
+      tocMap.forEach((tocItem, fieldName) => {
+        const card = cardMap.get(fieldName);
+        if (!card) return;
+
+        tocItem.classList.remove("toc-confirmed", "toc-pending");
+
+        if (card.classList.contains("confirmed")) {
+          tocItem.classList.add("toc-confirmed");
+        } else {
+          tocItem.classList.add("toc-pending");
+        }
+      });
+    }
+
+    function renderFromStore(store) {
+      cards.forEach((card) => {
+        const fieldName = card.dataset.fieldName;
+        const item = store[fieldName] || {
+          state: "pending",
+          note: "",
+          collapsed: null
+        };
+        applyCardState(card, item);
+      });
+
+      updateSummaryStats();
+      updateSidebarStatus();
+    }
+
+    function getInitialStore() {
+      const localStore = loadStore();
+      if (Object.keys(localStore).length > 0) {
+        return localStore;
+      }
+
+      const embeddedStore = loadEmbeddedStore();
+      if (Object.keys(embeddedStore).length > 0) {
+        saveStore(embeddedStore);
+        return embeddedStore;
+      }
+
+      return {};
+    }
+
+    function downloadTextFile(filename, content, mimeType = "text/plain;charset=utf-8") {
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+
+      URL.revokeObjectURL(url);
+    }
+
+    function exportHtmlWithNotes() {
+      const currentStore = collectCurrentStore();
+
+      const clonedRoot = document.documentElement.cloneNode(true);
+      const embeddedEl = clonedRoot.querySelector("#embedded-report-state");
+
+      if (embeddedEl) {
+        embeddedEl.textContent = JSON.stringify(currentStore, null, 2);
+      }
+
+      const exportedHtml = "<!DOCTYPE html>\n" + clonedRoot.outerHTML;
+      downloadTextFile("report_with_notes.html", exportedHtml, "text/html;charset=utf-8");
+    }
+
+    function bindCardEvents() {
+      cards.forEach((card) => {
+        const pendingBtn = card.querySelector(".pending-btn");
+        const confirmedBtn = card.querySelector(".confirmed-btn");
+        const collapseBtn = card.querySelector(".collapse-btn");
+        const textarea = card.querySelector(".note-textarea");
+
+        pendingBtn.addEventListener("click", () => {
+          const current = readCardState(card);
+          applyCardState(card, {
+            state: "pending",
+            note: current.note,
+            collapsed: false
+          });
+          persistSingleCard(card);
+          updateSummaryStats();
+          updateSidebarStatus();
+        });
+
+        confirmedBtn.addEventListener("click", () => {
+          const current = readCardState(card);
+          applyCardState(card, {
+            state: "confirmed",
+            note: current.note,
+            collapsed: true
+          });
+          persistSingleCard(card);
+          updateSummaryStats();
+          updateSidebarStatus();
+        });
+
+        collapseBtn.addEventListener("click", () => {
+          const current = readCardState(card);
+          applyCardState(card, {
+            state: current.state,
+            note: current.note,
+            collapsed: !current.collapsed
+          });
+          persistSingleCard(card);
+        });
+
+        textarea.addEventListener("input", () => {
+          persistSingleCard(card);
+        });
+      });
+    }
+
+    function bindToolbarEvents() {
+      const exportBtn = document.getElementById("export-btn");
+      const exportHtmlBtn = document.getElementById("export-html-btn");
+      const importBtn = document.getElementById("import-btn");
+      const resetBtn = document.getElementById("reset-btn");
+      const importFileInput = document.getElementById("import-file-input");
+      const expandAllBtn = document.getElementById("expand-all-btn");
+      const collapseConfirmedBtn = document.getElementById("collapse-confirmed-btn");
+
+      exportBtn.addEventListener("click", () => {
+        const store = collectCurrentStore();
+        downloadTextFile("field_notes.json", JSON.stringify(store, null, 2), "application/json");
+      });
+
+      exportHtmlBtn.addEventListener("click", () => {
+        exportHtmlWithNotes();
+      });
+
+      importBtn.addEventListener("click", () => {
+        importFileInput.click();
+      });
+
+      importFileInput.addEventListener("change", async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        try {
+          const text = await file.text();
+          const importedStore = JSON.parse(text);
+          saveStore(importedStore);
+          renderFromStore(importedStore);
+          alert("导入成功");
+        } catch (e) {
+          console.error(e);
+          alert("导入失败：JSON 文件格式不正确");
+        } finally {
+          importFileInput.value = "";
+        }
+      });
+
+      resetBtn.addEventListener("click", () => {
+        const confirmed = confirm("确定要清空当前浏览器里的字段状态和批注吗？");
+        if (!confirmed) return;
+
+        localStorage.removeItem(STORAGE_KEY);
+        renderFromStore({});
+      });
+
+      expandAllBtn.addEventListener("click", () => {
+        cards.forEach((card) => {
+          const current = readCardState(card);
+          applyCardState(card, {
+            state: current.state,
+            note: current.note,
+            collapsed: false
+          });
+          persistSingleCard(card);
+        });
+      });
+
+      collapseConfirmedBtn.addEventListener("click", () => {
+        cards.forEach((card) => {
+          const current = readCardState(card);
+          if (current.state === "confirmed") {
+            applyCardState(card, {
+              state: current.state,
+              note: current.note,
+              collapsed: true
+            });
+            persistSingleCard(card);
+          }
+        });
+      });
+    }
+
+    function init() {
+      const initialStore = getInitialStore();
+      renderFromStore(initialStore);
+      bindCardEvents();
+      bindToolbarEvents();
+    }
+
+    init();
+  });
+</script>
+</body>
+</html>
