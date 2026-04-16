@@ -285,6 +285,36 @@
       line-height: 1.4;
     }
 
+    .toc-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.toc-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.4;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #4b5563;
+}
+
+.toc-tag.confirmed {
+  background: #f0fdf4;
+  color: #15803d;
+  border-color: #86efac;
+}
+
+.toc-tag.pending {
+  background: #fff7ed;
+  color: #c2410c;
+  border-color: #fdba74;
+}
+
     .content {
       min-width: 0;
     }
@@ -699,10 +729,12 @@
 
       <div class="toolbar">
         <input id="csv-file-input" type="file" accept=".csv,text/csv" />
-        <button id="analyze-btn" type="button">开始分析</button>
-        <button id="export-notes-btn" type="button">导出批注 JSON</button>
-        <button id="export-html-btn" type="button">导出带批注 HTML</button>
-        <div class="toolbar-note" id="file-note">尚未选择文件</div>
+<button id="analyze-btn" type="button">开始分析</button>
+<button id="export-notes-btn" type="button">导出批注 JSON</button>
+<button id="import-notes-btn" type="button">导入批注 JSON</button>
+<button id="export-html-btn" type="button">导出带批注 HTML</button>
+<input id="import-notes-file-input" type="file" accept=".json,application/json" style="display:none;" />
+<div class="toolbar-note" id="file-note">尚未选择文件</div>
       </div>
 
       <div class="dim-box">
@@ -750,11 +782,12 @@
       <div class="control-box" id="control-box" style="display:none;">
         <input id="field-search-input" type="text" placeholder="搜索字段名，例如：lat / click / source" />
         <select id="field-filter-select">
-          <option value="all">全部字段</option>
-          <option value="problem">只看问题字段</option>
-          <option value="unconfirmed">只看待确认</option>
-          <option value="confirmed">只看已确认</option>
-        </select>
+  <option value="all">全部字段</option>
+  <option value="problem">只看问题字段</option>
+  <option value="severe">只看严重缺失字段</option>
+  <option value="unconfirmed">只看待确认</option>
+  <option value="confirmed">只看已确认</option>
+</select>
         <button id="expand-all-btn" type="button">展开全部</button>
         <button id="collapse-confirmed-btn" type="button">折叠已确认</button>
         <div class="control-summary" id="control-summary">当前展示 0 / 0 个字段</div>
@@ -1286,6 +1319,9 @@
       if (scope === "problem" && !(field.fillRate < 100)) {
         return false;
       }
+      if (scope === "severe" && !(field.fillRate < 10)) {
+  return false;
+}
 
       if (scope === "unconfirmed" && state.status !== "pending") {
         return false;
@@ -1325,13 +1361,18 @@
           "toc-item toc-ok";
 
         return `
-          <a class="${tocClass} ${state.status === "confirmed" ? "toc-confirmed" : ""}" href="#field-${escapeHtml(field.fieldName)}" data-toc-field="${escapeHtml(field.fieldName)}">
-            <strong>${escapeHtml(field.fieldName)}</strong>
-            <span class="toc-meta">
-              非空率：${field.fillRate}% ｜ distinct：${field.distinctCount} ｜ ${field.problemLabel}
-            </span>
-          </a>
-        `;
+  <a class="${tocClass} ${state.status === "confirmed" ? "toc-confirmed" : ""}" href="#field-${escapeHtml(field.fieldName)}" data-toc-field="${escapeHtml(field.fieldName)}">
+    <strong>${escapeHtml(field.fieldName)}</strong>
+    <span class="toc-meta">
+      非空率：${field.fillRate}% ｜ distinct：${field.distinctCount} ｜ ${field.problemLabel}
+    </span>
+    <span class="toc-tags">
+      <span class="toc-tag ${state.status === "confirmed" ? "confirmed" : "pending"}">
+        ${state.status === "confirmed" ? "已确认" : "待确认"}
+      </span>
+    </span>
+  </a>
+`;
       }).join("");
 
       const fieldHtml = filteredFields.map(field => {
@@ -1627,6 +1668,46 @@
       );
     }
 
+    function importNotesJsonFromFile(file) {
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(reader.result);
+      const importedNotes = parsed.notes ? parsed.notes : parsed;
+
+      if (!importedNotes || typeof importedNotes !== "object") {
+        alert("导入失败：JSON 结构不正确。");
+        return;
+      }
+
+      currentNotesState = importedNotes;
+      saveNotesState();
+
+      if (parsed.viewFilters) {
+        currentViewFilters = {
+          search: parsed.viewFilters.search || "",
+          scope: parsed.viewFilters.scope || "all"
+        };
+
+        document.getElementById("field-search-input").value = currentViewFilters.search;
+        document.getElementById("field-filter-select").value = currentViewFilters.scope;
+      }
+
+      renderReport(currentReport);
+      savePageMeta();
+      alert("批注导入成功");
+    } catch (e) {
+      console.error(e);
+      alert("导入失败：不是合法的 JSON 文件");
+    }
+  };
+
+  reader.readAsText(file, "utf-8");
+}
+
     function exportAnnotatedHtml() {
       if (!currentReport) {
         alert("当前还没有分析结果。");
@@ -1818,6 +1899,8 @@
       const resetDefaultDimsBtn = document.getElementById("reset-default-dims-btn");
       const exportNotesBtn = document.getElementById("export-notes-btn");
       const exportHtmlBtn = document.getElementById("export-html-btn");
+      const importNotesBtn = document.getElementById("import-notes-btn");
+const importNotesFileInput = document.getElementById("import-notes-file-input");
       const searchInput = document.getElementById("field-search-input");
       const filterSelect = document.getElementById("field-filter-select");
       const expandAllBtn = document.getElementById("expand-all-btn");
@@ -1864,6 +1947,19 @@
       });
 
       exportNotesBtn.addEventListener("click", exportNotesJson);
+      importNotesBtn.addEventListener("click", () => {
+  if (!currentReport) {
+    alert("请先生成或恢复一份报告，再导入批注。");
+    return;
+  }
+  importNotesFileInput.click();
+});
+
+importNotesFileInput.addEventListener("change", () => {
+  const file = importNotesFileInput.files[0];
+  importNotesJsonFromFile(file);
+  importNotesFileInput.value = "";
+});
       exportHtmlBtn.addEventListener("click", exportAnnotatedHtml);
 
       searchInput.addEventListener("input", () => {
