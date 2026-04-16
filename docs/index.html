@@ -1285,9 +1285,13 @@ function applyDimPanelCollapsedState(collapsed) {
   currentDimPanelCollapsed = !!collapsed;
 
   const dimBox = document.getElementById("dim-box");
+  const dimBody = document.getElementById("dim-body");
   const toggleBtn = document.getElementById("toggle-dim-box-btn");
 
-  if (!dimBox || !toggleBtn) return;
+  if (!dimBox || !dimBody || !toggleBtn) {
+    console.warn("空值上下文维度折叠相关元素未找到");
+    return;
+  }
 
   dimBox.classList.toggle("collapsed", currentDimPanelCollapsed);
   toggleBtn.textContent = currentDimPanelCollapsed ? "展开" : "折叠";
@@ -2152,15 +2156,20 @@ importNotesFileInput.addEventListener("change", () => {
 
     
     bindEvents();
+    document.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return;
+
+  if (target.id === "toggle-dim-box-btn") {
+    applyDimPanelCollapsedState(!currentDimPanelCollapsed);
+    savePageMeta();
+  }
+});
     sqlNoteTextarea.addEventListener("input", () => {
   currentSqlNote = sqlNoteTextarea.value;
   savePageMeta();
 });
 
-toggleDimBoxBtn.addEventListener("click", () => {
-  applyDimPanelCollapsedState(!currentDimPanelCollapsed);
-  savePageMeta();
-});
 
 
     (async () => {
