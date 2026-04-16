@@ -1030,48 +1030,48 @@ let currentDimPanelCollapsed = false;
     }
 
     function chooseDefaultSelectedDims(candidates) {
-      const candidateMap = new Map(candidates.map(item => [item.fieldName, item]));
-      const preferredOrder = [
-        "site",
-        "plat",
-        "entry_source",
-        "is_in_view",
-        "devi_brand",
-        "page_type",
-        "search_type",
-        "list_name",
-        "list_result",
-        "home_type",
-        "os",
-        "ab_test"
-      ];
+  const candidateMap = new Map(candidates.map(item => [item.fieldName, item]));
+  const preferredOrder = [
+    "site",
+    "plat",
+    "entry_source",
+    "is_in_view",
+    "devi_brand",
+    "page_type",
+    "search_type",
+    "list_name",
+    "list_result",
+    "home_type",
+    "os",
+    "ab_test"
+  ];
 
-      const excludeRegex = /(_id$|_time$|^cal_dt$|^ip$|^muid$|^lng$|^lat$|^new_tid$|^user_id$)/i;
-      const selected = [];
+  const excludeRegex = /(_id$|_time$|^cal_dt$|^ip$|^muid$|^lng$|^lat$|^new_tid$|^user_id$)/i;
+  const selected = [];
 
-      preferredOrder.forEach(name => {
-        if (candidateMap.has(name) && !selected.includes(name)) {
-          selected.push(name);
-        }
-      });
-
-      if (selected.length < 6) {
-        candidates.forEach(item => {
-          if (selected.length >= 6) return;
-          if (selected.includes(item.fieldName)) return;
-          if (excludeRegex.test(item.fieldName)) return;
-          if (item.distinctCount < 2) return;
-          if (item.distinctCount > 30) return;
-          selected.push(item.fieldName);
-        });
-      }
-
-      if (selected.length === 0) {
-        candidates.slice(0, 4).forEach(item => selected.push(item.fieldName));
-      }
-
-      return selected.slice(0, 6);
+  preferredOrder.forEach(name => {
+    if (candidateMap.has(name) && !selected.includes(name)) {
+      selected.push(name);
     }
+  });
+
+  if (selected.length < 6) {
+    candidates.forEach(item => {
+      if (selected.length >= 6) return;
+      if (selected.includes(item.fieldName)) return;
+      if (excludeRegex.test(item.fieldName)) return;
+      if (item.distinctCount < 2) return;
+      if (item.distinctCount > 30) return;
+      selected.push(item.fieldName);
+    });
+  }
+
+  if (selected.length === 0) {
+    candidates.slice(0, 4).forEach(item => selected.push(item.fieldName));
+  }
+
+  return selected.slice(0, 6);
+}
 
     function escapeHtml(value) {
       return String(value)
@@ -1796,7 +1796,34 @@ function applyDimPanelCollapsedState(collapsed) {
         document.getElementById("field-filter-select").value = currentViewFilters.scope;
       }
 
-      renderReport(currentReport);
+      if (Array.isArray(parsed.selectedDims) && parsed.selectedDims.length > 0) {
+        const selectedSet = new Set(parsed.selectedDims);
+
+        document.querySelectorAll('#dim-list input[type="checkbox"]').forEach(el => {
+          el.checked = selectedSet.has(el.value);
+        });
+      }
+
+      if (typeof parsed.sqlNote === "string") {
+        currentSqlNote = parsed.sqlNote;
+        const sqlBox = document.getElementById("sql-note-textarea");
+        if (sqlBox) {
+          sqlBox.value = currentSqlNote;
+        }
+      }
+
+      if (typeof parsed.dimPanelCollapsed === "boolean") {
+        applyDimPanelCollapsedState(parsed.dimPanelCollapsed);
+      }
+
+      if (currentReport) {
+        if (uploadedRows && uploadedRows.length > 0) {
+          const dims = getSelectedDims();
+          currentReport = profileRows(uploadedRows, dims);
+        }
+        renderReport(currentReport);
+      }
+
       savePageMeta();
       alert("批注导入成功");
     } catch (e) {
@@ -1868,14 +1895,6 @@ function applyDimPanelCollapsedState(collapsed) {
           showError("CSV 解析成功，但没有读到有效数据。");
           return;
         }
-if (typeof parsed.sqlNote === "string") {
-  currentSqlNote = parsed.sqlNote;
-  document.getElementById("sql-note-textarea").value = currentSqlNote;
-}
-
-if (typeof parsed.dimPanelCollapsed === "boolean") {
-  applyDimPanelCollapsedState(parsed.dimPanelCollapsed);
-}
 savePageMeta();
         uploadedRows = rows;
         uploadedFileName = file.name;
@@ -1893,11 +1912,15 @@ applyDimPanelCollapsedState(false);
         const report = profileRows(rows, dims);
         currentReport = report;
 
-        await saveRowsToIndexedDB({
-          uploadedRows: rows,
-          uploadedFileName,
-          dimensionCandidates
-        });
+        try {
+  await saveRowsToIndexedDB({
+    uploadedRows: rows,
+    uploadedFileName,
+    dimensionCandidates
+  });
+} catch (cacheError) {
+  console.warn("保存 IndexedDB 缓存失败，但不影响本次报告生成", cacheError);
+}
 
         renderReport(report);
         savePageMeta();
@@ -1906,10 +1929,11 @@ applyDimPanelCollapsedState(false);
           `已分析文件：${uploadedFileName} ｜ 行数：${report.summary.totalRows} ｜ 字段数：${report.summary.totalCols} ｜ 候选维度数：${dimensionCandidates.length}`
         );
       } catch (e) {
-        console.error(e);
-        showError("CSV 解析失败，请检查文件格式是否正确。");
-        updateFileNote("分析失败");
-      } finally {
+  console.error(e);
+  const errorMessage = e && e.message ? e.message : String(e);
+  showError(`分析失败：${errorMessage}`);
+  updateFileNote(`分析失败：${errorMessage}`);
+}finally {
         analyzeBtn.disabled = false;
       }
     }
