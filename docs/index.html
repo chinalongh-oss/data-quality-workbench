@@ -85,6 +85,71 @@
       line-height: 1.5;
     }
 
+    .sql-note-box {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.sql-note-box label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.sql-note-textarea {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  background: #fff;
+  outline: none;
+}
+
+.sql-note-textarea:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.sql-note-tip {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.dim-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dim-toggle-btn {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #111827;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.dim-toggle-btn:hover {
+  background: #f9fafb;
+}
+
+.dim-box.collapsed .dim-body {
+  display: none;
+}
+
     .dim-box {
       margin-top: 8px;
       padding: 14px;
@@ -728,29 +793,44 @@
       </div>
 
       <div class="toolbar">
-        <input id="csv-file-input" type="file" accept=".csv,text/csv" />
-<button id="analyze-btn" type="button">开始分析</button>
-<button id="export-notes-btn" type="button">导出批注 JSON</button>
-<button id="import-notes-btn" type="button">导入批注 JSON</button>
-<button id="export-html-btn" type="button">导出带批注 HTML</button>
-<input id="import-notes-file-input" type="file" accept=".json,application/json" style="display:none;" />
-<div class="toolbar-note" id="file-note">尚未选择文件</div>
-      </div>
+  <input id="csv-file-input" type="file" accept=".csv,text/csv" />
+  <button id="analyze-btn" type="button">开始分析</button>
+  <button id="export-notes-btn" type="button">导出批注 JSON</button>
+  <button id="import-notes-btn" type="button">导入批注 JSON</button>
+  <button id="export-html-btn" type="button">导出带批注 HTML</button>
+  <input id="import-notes-file-input" type="file" accept=".json,application/json" style="display:none;" />
+  <div class="toolbar-note" id="file-note">尚未选择文件</div>
+</div>
 
-      <div class="dim-box">
-        <div class="dim-title">空值上下文维度</div>
-        <div class="dim-sub">
-          导入文件后，系统会自动将 <strong>distinct &lt; 100</strong> 的字段识别为候选维度。默认会优先选中更像“上下文维度”的字段，而不是全部候选字段。
-        </div>
-        <div class="dim-actions">
-          <button id="select-all-dims-btn" type="button">全选</button>
-          <button id="clear-all-dims-btn" type="button">全不选</button>
-          <button id="reset-default-dims-btn" type="button">恢复默认</button>
-        </div>
-        <div class="dim-list" id="dim-list">
-          <div class="empty">尚未导入文件，无法识别候选维度。</div>
-        </div>
-      </div>
+<div class="sql-note-box">
+  <label for="sql-note-textarea">取数 SQL 备注</label>
+  <textarea
+    id="sql-note-textarea"
+    class="sql-note-textarea"
+    placeholder="例如：这里填写取数 SQL、数据来源、分区条件、时间范围、样本口径等说明"
+  ></textarea>
+  <div class="sql-note-tip">会保存在当前浏览器，并随导出带批注 HTML 一起带出。</div>
+</div>
+
+      <div class="dim-box" id="dim-box">
+  <div class="dim-head">
+    <div class="dim-title">空值上下文维度</div>
+    <button id="toggle-dim-box-btn" class="dim-toggle-btn" type="button">折叠</button>
+  </div>
+  <div class="dim-body" id="dim-body">
+    <div class="dim-sub">
+      导入文件后，系统会自动将 <strong>distinct &lt; 100</strong> 的字段识别为候选维度。默认会优先选中更像“上下文维度”的字段，而不是全部候选字段。
+    </div>
+    <div class="dim-actions">
+      <button id="select-all-dims-btn" type="button">全选</button>
+      <button id="clear-all-dims-btn" type="button">全不选</button>
+      <button id="reset-default-dims-btn" type="button">恢复默认</button>
+    </div>
+    <div class="dim-list" id="dim-list">
+      <div class="empty">尚未导入文件，无法识别候选维度。</div>
+    </div>
+  </div>
+</div>
 
       <div class="summary" id="summary-panel" style="display:none;">
         <div class="summary-item">
@@ -812,6 +892,8 @@
       search: "",
       scope: "all"
     };
+    let currentSqlNote = "";
+let currentDimPanelCollapsed = false;
 
     const PAGE_META_KEY = "dq-page-meta-v3:" + window.location.pathname;
     const DB_NAME = "dq-workbench-cache-db";
@@ -1180,20 +1262,36 @@
     }
 
     function savePageMeta() {
-      const payload = {
-        uploadedFileName,
-        currentStorageKey,
-        dimensionCandidates,
-        selectedDims: getSelectedDims(),
-        currentViewFilters
-      };
+  currentSqlNote = document.getElementById("sql-note-textarea")?.value || currentSqlNote;
 
-      try {
-        localStorage.setItem(PAGE_META_KEY, JSON.stringify(payload));
-      } catch (e) {
-        console.error("保存页面元数据失败", e);
-      }
-    }
+  const payload = {
+    uploadedFileName,
+    currentStorageKey,
+    dimensionCandidates,
+    selectedDims: getSelectedDims(),
+    currentViewFilters,
+    sqlNote: currentSqlNote,
+    dimPanelCollapsed: currentDimPanelCollapsed
+  };
+
+  try {
+    localStorage.setItem(PAGE_META_KEY, JSON.stringify(payload));
+  } catch (e) {
+    console.error("保存页面元数据失败", e);
+  }
+}
+
+function applyDimPanelCollapsedState(collapsed) {
+  currentDimPanelCollapsed = !!collapsed;
+
+  const dimBox = document.getElementById("dim-box");
+  const toggleBtn = document.getElementById("toggle-dim-box-btn");
+
+  if (!dimBox || !toggleBtn) return;
+
+  dimBox.classList.toggle("collapsed", currentDimPanelCollapsed);
+  toggleBtn.textContent = currentDimPanelCollapsed ? "展开" : "折叠";
+}
 
     function loadPageMeta() {
       try {
@@ -1654,12 +1752,14 @@
       }
 
       const payload = {
-        fileName: uploadedFileName || "unknown",
-        storageKey: currentStorageKey,
-        notes: currentNotesState,
-        viewFilters: currentViewFilters,
-        selectedDims: getSelectedDims()
-      };
+  fileName: uploadedFileName || "unknown",
+  storageKey: currentStorageKey,
+  notes: currentNotesState,
+  viewFilters: currentViewFilters,
+  selectedDims: getSelectedDims(),
+  sqlNote: document.getElementById("sql-note-textarea")?.value || "",
+  dimPanelCollapsed: currentDimPanelCollapsed
+};
 
       downloadTextFile(
         "field_notes.json",
@@ -1721,12 +1821,14 @@
       const metaScript = clonedRoot.querySelector("#embedded-meta-data");
 
       const metaPayload = {
-        fileName: uploadedFileName || "embedded_report",
-        storageKey: currentStorageKey,
-        dimensionCandidates: dimensionCandidates,
-        viewFilters: currentViewFilters,
-        selectedDims: getSelectedDims()
-      };
+  fileName: uploadedFileName || "embedded_report",
+  storageKey: currentStorageKey,
+  dimensionCandidates: dimensionCandidates,
+  viewFilters: currentViewFilters,
+  selectedDims: getSelectedDims(),
+  sqlNote: document.getElementById("sql-note-textarea")?.value || "",
+  dimPanelCollapsed: currentDimPanelCollapsed
+};
 
       if (reportScript) {
         reportScript.textContent = JSON.stringify(currentReport, null, 2);
@@ -1766,13 +1868,23 @@
           showError("CSV 解析成功，但没有读到有效数据。");
           return;
         }
+if (typeof parsed.sqlNote === "string") {
+  currentSqlNote = parsed.sqlNote;
+  document.getElementById("sql-note-textarea").value = currentSqlNote;
+}
 
+if (typeof parsed.dimPanelCollapsed === "boolean") {
+  applyDimPanelCollapsedState(parsed.dimPanelCollapsed);
+}
+savePageMeta();
         uploadedRows = rows;
         uploadedFileName = file.name;
         dimensionCandidates = buildDimensionCandidates(rows);
 
         const defaultDims = chooseDefaultSelectedDims(dimensionCandidates);
         renderDimensionCandidates(dimensionCandidates, new Set(defaultDims));
+        currentDimPanelCollapsed = false;
+applyDimPanelCollapsedState(false);
 
         currentStorageKey = computeStorageKeyFromRows(rows, file.name);
         currentNotesState = loadNotesState();
@@ -1828,11 +1940,15 @@
         }
 
         currentViewFilters = meta?.currentViewFilters || { search: "", scope: "all" };
+        currentSqlNote = meta?.sqlNote || "";
+        currentDimPanelCollapsed = !!meta?.dimPanelCollapsed;
 
         renderDimensionCandidates(dimensionCandidates, new Set(selectedDims));
 
         document.getElementById("field-search-input").value = currentViewFilters.search || "";
         document.getElementById("field-filter-select").value = currentViewFilters.scope || "all";
+        document.getElementById("sql-note-textarea").value = currentSqlNote;
+        applyDimPanelCollapsedState(currentDimPanelCollapsed);
 
         currentReport = profileRows(uploadedRows, selectedDims);
         renderReport(currentReport);
@@ -1866,6 +1982,8 @@
         search: embeddedMeta?.viewFilters?.search || "",
         scope: embeddedMeta?.viewFilters?.scope || "all"
       };
+      currentSqlNote = embeddedMeta?.sqlNote || "";
+currentDimPanelCollapsed = !!embeddedMeta?.dimPanelCollapsed;
 
       currentNotesState = embeddedNotes || {};
 
@@ -1879,6 +1997,8 @@
 
       document.getElementById("field-search-input").value = currentViewFilters.search || "";
       document.getElementById("field-filter-select").value = currentViewFilters.scope || "all";
+      document.getElementById("sql-note-textarea").value = currentSqlNote;
+applyDimPanelCollapsedState(currentDimPanelCollapsed);
 
       renderReport(embeddedReport);
       document.getElementById("control-box").style.display = "grid";
@@ -1891,6 +2011,8 @@
     }
 
     function bindEvents() {
+      const sqlNoteTextarea = document.getElementById("sql-note-textarea");
+const toggleDimBoxBtn = document.getElementById("toggle-dim-box-btn");
       const input = document.getElementById("csv-file-input");
       const analyzeBtn = document.getElementById("analyze-btn");
       const dimList = document.getElementById("dim-list");
@@ -2004,7 +2126,18 @@ importNotesFileInput.addEventListener("change", () => {
       });
     }
 
+    
     bindEvents();
+    sqlNoteTextarea.addEventListener("input", () => {
+  currentSqlNote = sqlNoteTextarea.value;
+  savePageMeta();
+});
+
+toggleDimBoxBtn.addEventListener("click", () => {
+  applyDimPanelCollapsedState(!currentDimPanelCollapsed);
+  savePageMeta();
+});
+
 
     (async () => {
       const restoredFromEmbedded = initFromEmbedded();
